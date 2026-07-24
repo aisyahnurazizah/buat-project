@@ -1,8 +1,12 @@
 /**
  * Notification Service
  * Handles Service Worker registration, browser permission management,
- * and displaying local notifications.
+ * displaying local notifications, and user notification preferences.
  */
+
+export * from '../types/notification';
+export * from './notificationPreferences';
+
 
 // Keep a local reference to the active Service Worker registration
 let swRegistration: ServiceWorkerRegistration | null = null;
