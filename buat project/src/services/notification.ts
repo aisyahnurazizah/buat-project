@@ -8,6 +8,19 @@
 let swRegistration: ServiceWorkerRegistration | null = null;
 
 /**
+ * Interface representing the comprehensive status of browser notification permissions.
+ * Designed for easy consumption by Notification Settings UI.
+ */
+export interface NotificationPermissionState {
+  permission: NotificationPermission; // 'granted' | 'denied' | 'default'
+  isSupported: boolean;
+  isGranted: boolean;
+  isDenied: boolean;
+  isDefault: boolean;
+  canRequest: boolean;
+}
+
+/**
  * Checks if the browser supports notifications and service workers.
  */
 export const isNotificationSupported = (): boolean => {
@@ -15,7 +28,7 @@ export const isNotificationSupported = (): boolean => {
 };
 
 /**
- * Gets the current notification permission status.
+ * Gets the current notification permission status ('granted', 'denied', or 'default').
  */
 export const getNotificationPermission = (): NotificationPermission => {
   if (!isNotificationSupported()) {
@@ -25,7 +38,26 @@ export const getNotificationPermission = (): NotificationPermission => {
 };
 
 /**
- * Requests permission from the user to show notifications.
+ * Gets a structured permission state summary for Notification Settings.
+ */
+export const getNotificationPermissionState = (): NotificationPermissionState => {
+  const supported = isNotificationSupported();
+  const permission = getNotificationPermission();
+
+  return {
+    permission,
+    isSupported: supported,
+    isGranted: permission === 'granted',
+    isDenied: permission === 'denied',
+    isDefault: permission === 'default',
+    canRequest: supported && permission === 'default',
+  };
+};
+
+/**
+ * Requests permission from the user to show notifications using Notification.requestPermission().
+ * Handles 'granted', 'denied', and 'default' responses.
+ * 
  * @returns Promise resolving to the resulting NotificationPermission status.
  */
 export const requestNotificationPermission = async (): Promise<NotificationPermission> => {
@@ -34,18 +66,70 @@ export const requestNotificationPermission = async (): Promise<NotificationPermi
     return 'denied';
   }
 
-  // Check if standard permission request is promise-based or uses a callback
   try {
     const permission = await Notification.requestPermission();
     return permission;
   } catch (error) {
-    // Fallback for older browsers
+    // Fallback for older browsers that use callback syntax
     return new Promise((resolve) => {
       Notification.requestPermission((permission) => {
         resolve(permission);
       });
     });
   }
+};
+
+/**
+ * Main action function for Notification Settings UI.
+ * Requests notification permission from the user and automatically registers the Service Worker if granted.
+ * Explicitly handles 'granted', 'denied', and 'default' statuses.
+ * 
+ * @returns Promise resolving to the updated NotificationPermissionState.
+ */
+export const handlePermissionRequest = async (): Promise<NotificationPermissionState> => {
+  const permission = await requestNotificationPermission();
+
+  if (permission === 'granted') {
+    await registerServiceWorker();
+  }
+
+  return getNotificationPermissionState();
+};
+
+/**
+ * Subscribes to browser notification permission changes (e.g. when user changes settings in browser address bar).
+ * 
+ * @param onChange Callback triggered when permission status changes.
+ * @returns Unsubscribe function to clean up listener.
+ */
+export const subscribePermissionChange = (
+  onChange: (state: NotificationPermissionState) => void
+): (() => void) => {
+  if (!('permissions' in navigator)) {
+    return () => {};
+  }
+
+  let permissionStatus: PermissionStatus | null = null;
+
+  const handleChange = () => {
+    onChange(getNotificationPermissionState());
+  };
+
+  navigator.permissions
+    .query({ name: 'notifications' as PermissionName })
+    .then((status) => {
+      permissionStatus = status;
+      permissionStatus.addEventListener('change', handleChange);
+    })
+    .catch((error) => {
+      console.warn('Permissions API query for notifications failed:', error);
+    });
+
+  return () => {
+    if (permissionStatus) {
+      permissionStatus.removeEventListener('change', handleChange);
+    }
+  };
 };
 
 /**
@@ -83,7 +167,6 @@ export const getActiveServiceWorkerRegistration = async (): Promise<ServiceWorke
 
   try {
     const registrations = await navigator.serviceWorker.getRegistrations();
-    // Find the one that matches notification-sw.js
     const match = registrations.find(reg => reg.active && reg.active.scriptURL.includes('notification-sw.js'));
     if (match) {
       swRegistration = match;
@@ -118,7 +201,6 @@ export const showLocalNotification = async (
     return false;
   }
 
-  // Ensure we try to fetch active registration if not cached
   const registration = await getActiveServiceWorkerRegistration();
 
   if (registration) {
@@ -130,11 +212,9 @@ export const showLocalNotification = async (
     }
   }
 
-  // Fallback to standard window Notification API
   try {
     const notification = new Notification(title, options);
 
-    // Handle click interaction on fallback notifications
     if (options?.data?.url) {
       notification.onclick = (event) => {
         event.preventDefault();
