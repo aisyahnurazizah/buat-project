@@ -87,6 +87,45 @@ body {
   background: rgba(255, 255, 255, 0.08);
 }
 
+/* Notification Badge */
+.notif-bell-link {
+  padding: 0.5rem;
+}
+
+.notif-bell-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notif-badge {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  background: var(--danger);
+  color: #fff;
+  border-radius: 9999px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 2px var(--bg-dark);
+  animation: badge-pop 0.25s ease;
+  pointer-events: none;
+}
+
+@keyframes badge-pop {
+  0%   { transform: scale(0.5); opacity: 0; }
+  70%  { transform: scale(1.2); }
+  100% { transform: scale(1);   opacity: 1; }
+}
+
+
 .app-main {
   flex: 1;
   padding: 2rem 1rem;

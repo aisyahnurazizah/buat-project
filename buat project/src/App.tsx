@@ -1,7 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, Link, Navigate } from 'react-router-dom';
 import NotificationsSettingsPage from './pages/settings/Notifications';
 import NotificationCenterPage from './pages/NotificationCenter';
-import { Bell, Settings, Inbox } from 'lucide-react';
+import NotificationBadge from './components/NotificationBadge';
+import { Settings } from 'lucide-react';
 import './App.css';
 
 function App() {
@@ -10,14 +11,10 @@ function App() {
       <div className="app-layout">
         <header className="app-header">
           <div className="header-brand">
-            <Bell size={24} className="brand-logo" />
             <span className="brand-name">Notification System</span>
           </div>
           <nav className="header-nav">
-            <Link to="/notifications" className="nav-link">
-              <Inbox size={18} />
-              <span>Notification Center</span>
-            </Link>
+            <NotificationBadge />
             <Link to="/settings/notifications" className="nav-link">
               <Settings size={18} />
               <span>Settings</span>
