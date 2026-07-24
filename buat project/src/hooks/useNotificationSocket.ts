@@ -1,8 +1,55 @@
 import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { getSocket, connectSocket } from '../services/socket';
+import { connectSocket } from '../services/socket';
 import { NOTIFICATIONS_QUERY_KEY } from './useNotifications';
 import { Notification } from '../types/notification';
+import {
+  getNotificationPermission,
+  showLocalNotification,
+} from '../services/notification';
+import { getNotificationPreferences } from '../services/notificationPreferences';
+
+/**
+ * Maps a notification type to the relevant user preference key.
+ * Returns null when the type has no preference toggle (e.g. 'friend_request')
+ * and should always show if permission is granted.
+ */
+const resolvePreferenceKey = (
+  type: Notification['type']
+): 'messages' | 'groups' | null => {
+  switch (type) {
+    case 'message':
+    case 'mention':
+      return 'messages';
+    case 'group':
+      return 'groups';
+    default:
+      return null; // Show unconditionally for unknown/system types
+  }
+};
+
+/**
+ * Decides whether a browser notification should be shown for an incoming
+ * notification payload, based on:
+ *  1. Browser permission (must be 'granted')
+ *  2. User preference for this notification type
+ */
+const shouldShowBrowserNotification = (notification: Notification): boolean => {
+  // 1. Permission gate — never show if denied
+  if (getNotificationPermission() !== 'granted') {
+    return false;
+  }
+
+  // 2. Preference gate — read current preferences (always fresh from localStorage)
+  const preferences = getNotificationPreferences();
+  const prefKey = resolvePreferenceKey(notification.type);
+
+  if (prefKey !== null && !preferences[prefKey]) {
+    return false;
+  }
+
+  return true;
+};
 
 /**
  * useNotificationSocket
@@ -14,6 +61,8 @@ import { Notification } from '../types/notification';
  *  1. The new item is prepended to the React Query cache for ['notifications'].
  *  2. NotificationCenter re-renders with the new item at the top.
  *  3. NotificationBadge re-renders with an incremented unread count.
+ *  4. A Browser Notification is shown if permission is granted and
+ *     the user's type preference allows it.
  *
  * Cleanup:
  *  - The listener is removed before every re-render and on unmount using the
@@ -33,12 +82,15 @@ const useNotificationSocket = (): void => {
   useEffect(() => {
     const socket = connectSocket();
 
-    // Define the handler and store it in the ref
-    const handler = (notification: Notification) => {
+    const handler = async (notification: Notification) => {
+      // ── Validation ──────────────────────────────────────────────────────────
       if (!notification || !notification.id) {
         console.warn('[Socket] Received malformed notification:new payload', notification);
         return;
       }
+
+      // ── Step 1: Update React Query cache ────────────────────────────────────
+      let isDuplicate = false;
 
       queryClient.setQueryData<Notification[]>(
         NOTIFICATIONS_QUERY_KEY,
@@ -46,16 +98,40 @@ const useNotificationSocket = (): void => {
           const current = prev ?? [];
 
           // Guard against duplicates — a reconnect might re-deliver the same event
-          const alreadyExists = current.some((item) => item.id === notification.id);
-          if (alreadyExists) return current;
+          if (current.some((item) => item.id === notification.id)) {
+            isDuplicate = true;
+            return current;
+          }
 
           // Prepend: newest notification appears first
           return [{ ...notification, isRead: false }, ...current];
         }
       );
 
+      // Don't show a browser notification for an event we've already processed
+      if (isDuplicate) {
+        if (import.meta.env.DEV) {
+          console.log('[Socket] Skipped duplicate notification:new —', notification.id);
+        }
+        return;
+      }
+
       if (import.meta.env.DEV) {
         console.log('[Socket] notification:new received —', notification.id, notification.title);
+      }
+
+      // ── Step 2: Browser Notification ────────────────────────────────────────
+      // Check permission and user preferences before showing
+      if (shouldShowBrowserNotification(notification)) {
+        await showLocalNotification(notification.title, {
+          body: notification.message,
+          icon: '/favicon.svg',
+          badge: '/favicon.svg',
+          tag: `notification-${notification.id}`, // Prevents OS from stacking duplicates
+          data: {
+            url: notification.targetUrl ?? '/notifications',
+          },
+        });
       }
     };
 
