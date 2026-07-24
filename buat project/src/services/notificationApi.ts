@@ -2,10 +2,10 @@ import apiClient from './apiClient';
 import { Notification } from '../types/notification';
 
 /**
- * Interface representing a wrapped API response for notifications list.
+ * Interface representing a wrapped API response for notifications.
  */
 export interface NotificationsApiResponse {
-  data: Notification[];
+  data: Notification[] | Notification;
   message?: string;
   status?: number;
 }
@@ -25,8 +25,39 @@ export const getNotifications = async (): Promise<Notification[]> => {
 
   // Handle wrapped response format { data: [...] }
   if (response.data && Array.isArray((response.data as NotificationsApiResponse).data)) {
-    return (response.data as NotificationsApiResponse).data;
+    return (response.data as NotificationsApiResponse).data as Notification[];
   }
 
   return [];
+};
+
+/**
+ * Marks a single notification as read via backend API endpoint (PATCH /notifications/:id/read).
+ * 
+ * @param id Notification ID to mark as read.
+ * @returns Promise resolving to the updated Notification item.
+ */
+export const markNotificationAsRead = async (id: string): Promise<Notification> => {
+  const response = await apiClient.patch<Notification | NotificationsApiResponse>(`/notifications/${id}/read`);
+
+  if (response.data && 'id' in response.data) {
+    return response.data as Notification;
+  }
+
+  if (response.data && 'data' in response.data) {
+    const dataContent = (response.data as NotificationsApiResponse).data;
+    if (Array.isArray(dataContent)) {
+      return dataContent[0];
+    }
+    return dataContent as Notification;
+  }
+
+  return {
+    id,
+    type: 'message',
+    title: '',
+    message: '',
+    isRead: true,
+    createdAt: new Date().toISOString(),
+  };
 };

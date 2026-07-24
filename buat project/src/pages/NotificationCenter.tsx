@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNotifications } from '../hooks/useNotifications';
+import { useNotifications, useMarkAsRead } from '../hooks/useNotifications';
 import { NotificationType } from '../types/notification';
 import {
   Bell,
@@ -10,6 +10,7 @@ import {
   AlertTriangle,
   RefreshCw,
   Inbox,
+  CheckCircle,
 } from 'lucide-react';
 
 /**
@@ -57,6 +58,13 @@ const NotificationTypeIcon: React.FC<{ type: NotificationType }> = ({ type }) =>
 
 export const NotificationCenterPage: React.FC = () => {
   const { notifications, isLoading, isError, error, isEmpty, refetch } = useNotifications();
+  const markAsReadMutation = useMarkAsRead();
+
+  const handleItemClick = (id: string, isRead: boolean) => {
+    if (!isRead) {
+      markAsReadMutation.mutate(id);
+    }
+  };
 
   return (
     <div className="notification-center-container">
@@ -133,6 +141,14 @@ export const NotificationCenterPage: React.FC = () => {
               <div
                 key={item.id}
                 className={`notification-item-card ${item.isRead ? 'read' : 'unread'}`}
+                onClick={() => handleItemClick(item.id, item.isRead)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    handleItemClick(item.id, item.isRead);
+                  }
+                }}
               >
                 {/* Unread Visual Indicator Dot */}
                 {!item.isRead && <span className="unread-dot-indicator" title="Unread notification" />}
@@ -153,9 +169,16 @@ export const NotificationCenterPage: React.FC = () => {
 
                   <div className="notification-item-meta">
                     <span className="notification-timestamp">{formatRelativeTime(item.createdAt)}</span>
-                    <span className={`status-tag ${item.isRead ? 'status-read' : 'status-unread'}`}>
-                      {item.isRead ? 'Read' : 'Unread'}
-                    </span>
+                    <div className="status-action-wrapper">
+                      <span className={`status-tag ${item.isRead ? 'status-read' : 'status-unread'}`}>
+                        {item.isRead ? 'Read' : 'Unread'}
+                      </span>
+                      {!item.isRead && (
+                        <span className="mark-read-hint">
+                          <CheckCircle size={12} /> Mark as read
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

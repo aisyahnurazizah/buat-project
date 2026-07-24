@@ -1,5 +1,5 @@
-import { useQuery, UseQueryResult } from '@tanstack/react-query';
-import { getNotifications } from '../services/notificationApi';
+import { useQuery, useMutation, useQueryClient, UseQueryResult, UseMutationResult } from '@tanstack/react-query';
+import { getNotifications, markNotificationAsRead } from '../services/notificationApi';
 import { Notification } from '../types/notification';
 
 /**
@@ -46,6 +46,47 @@ export const useNotifications = (): UseNotificationsResult => {
     refetch: queryResult.refetch,
     queryResult,
   };
+};
+
+/**
+ * Custom React Query mutation hook for marking a single notification as read.
+ * Optimistically updates the React Query cache and triggers PATCH /notifications/:id/read.
+ */
+export const useMarkAsRead = (): UseMutationResult<Notification, Error, string> => {
+  const queryClient = useQueryClient();
+
+  return useMutation<Notification, Error, string, { previousNotifications?: Notification[] }>({
+    mutationFn: (id: string) => markNotificationAsRead(id),
+    onMutate: async (id: string) => {
+      // Cancel outgoing refetches so they don't overwrite optimistic update
+      await queryClient.cancelQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
+
+      // Snapshot the previous state
+      const previousNotifications = queryClient.getQueryData<Notification[]>(NOTIFICATIONS_QUERY_KEY);
+
+      // Optimistically update cache to change isRead to true immediately
+      if (previousNotifications) {
+        queryClient.setQueryData<Notification[]>(
+          NOTIFICATIONS_QUERY_KEY,
+          previousNotifications.map((item) =>
+            item.id === id ? { ...item, isRead: true } : item
+          )
+        );
+      }
+
+      return { previousNotifications };
+    },
+    onError: (_err, _id, context) => {
+      // Rollback to previous state if mutation fails
+      if (context?.previousNotifications) {
+        queryClient.setQueryData(NOTIFICATIONS_QUERY_KEY, context.previousNotifications);
+      }
+    },
+    onSettled: () => {
+      // Invalidate query to keep in sync with server
+      queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
+    },
+  });
 };
 
 export default useNotifications;
