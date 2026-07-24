@@ -6,6 +6,7 @@
 
 export * from '../types/notification';
 export * from './notificationPreferences';
+export * from './notificationApi';
 
 
 // Keep a local reference to the active Service Worker registration
