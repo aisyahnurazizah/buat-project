@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNotifications, useMarkAsRead } from '../hooks/useNotifications';
+import { useNotifications, useMarkAsRead, useMarkAllAsRead } from '../hooks/useNotifications';
 import { NotificationType } from '../types/notification';
 import {
   Bell,
@@ -10,6 +10,7 @@ import {
   AlertTriangle,
   RefreshCw,
   Inbox,
+  MailCheck,
   CheckCircle,
 } from 'lucide-react';
 
@@ -59,6 +60,15 @@ const NotificationTypeIcon: React.FC<{ type: NotificationType }> = ({ type }) =>
 export const NotificationCenterPage: React.FC = () => {
   const { notifications, isLoading, isError, error, isEmpty, refetch } = useNotifications();
   const markAsReadMutation = useMarkAsRead();
+  const markAllAsReadMutation = useMarkAllAsRead();
+
+  const hasUnread = notifications.some((n) => !n.isRead);
+
+  const handleMarkAllAsRead = () => {
+    if (hasUnread) {
+      markAllAsReadMutation.mutate();
+    }
+  };
 
   const handleItemClick = (id: string, isRead: boolean) => {
     if (!isRead) {
@@ -82,15 +92,29 @@ export const NotificationCenterPage: React.FC = () => {
           </div>
         </div>
 
-        <button
-          type="button"
-          className="btn-secondary"
-          onClick={() => refetch()}
-          title="Refresh notifications"
-        >
-          <RefreshCw size={16} className={isLoading ? 'spin' : ''} />
-          <span>Refresh</span>
-        </button>
+        <div className="header-actions">
+          {hasUnread && (
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={handleMarkAllAsRead}
+              disabled={markAllAsReadMutation.isPending}
+              title="Mark all notifications as read"
+            >
+              <MailCheck size={16} />
+              <span>{markAllAsReadMutation.isPending ? 'Marking...' : 'Mark all as read'}</span>
+            </button>
+          )}
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => refetch()}
+            title="Refresh notifications"
+          >
+            <RefreshCw size={16} className={isLoading ? 'spin' : ''} />
+            <span>Refresh</span>
+          </button>
+        </div>
       </div>
 
       <div className="notification-center-content">

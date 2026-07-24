@@ -61,3 +61,12 @@ export const markNotificationAsRead = async (id: string): Promise<Notification> 
     createdAt: new Date().toISOString(),
   };
 };
+
+/**
+ * Marks all notifications as read via backend API endpoint (PATCH /notifications/read-all).
+ * 
+ * @returns Promise resolving to void.
+ */
+export const markAllNotificationsAsRead = async (): Promise<void> => {
+  await apiClient.patch('/notifications/read-all');
+};

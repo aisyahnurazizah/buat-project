@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient, UseQueryResult, UseMutationResult } from '@tanstack/react-query';
-import { getNotifications, markNotificationAsRead } from '../services/notificationApi';
+import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead } from '../services/notificationApi';
 import { Notification } from '../types/notification';
 
 /**
@@ -77,6 +77,45 @@ export const useMarkAsRead = (): UseMutationResult<Notification, Error, string> 
       return { previousNotifications };
     },
     onError: (_err, _id, context) => {
+      // Rollback to previous state if mutation fails
+      if (context?.previousNotifications) {
+        queryClient.setQueryData(NOTIFICATIONS_QUERY_KEY, context.previousNotifications);
+      }
+    },
+    onSettled: () => {
+      // Invalidate query to keep in sync with server
+      queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
+    },
+  });
+};
+
+/**
+ * Custom React Query mutation hook for marking all notifications as read.
+ * Optimistically updates the React Query cache for instant UI feedback.
+ */
+export const useMarkAllAsRead = (): UseMutationResult<void, Error, void> => {
+  const queryClient = useQueryClient();
+
+  return useMutation<void, Error, void, { previousNotifications?: Notification[] }>({
+    mutationFn: () => markAllNotificationsAsRead(),
+    onMutate: async () => {
+      // Cancel outgoing refetches so they don't overwrite optimistic update
+      await queryClient.cancelQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
+
+      // Snapshot the previous state for potential rollback
+      const previousNotifications = queryClient.getQueryData<Notification[]>(NOTIFICATIONS_QUERY_KEY);
+
+      // Optimistically mark all notifications as read in the cache
+      if (previousNotifications) {
+        queryClient.setQueryData<Notification[]>(
+          NOTIFICATIONS_QUERY_KEY,
+          previousNotifications.map((item) => ({ ...item, isRead: true }))
+        );
+      }
+
+      return { previousNotifications };
+    },
+    onError: (_err, _vars, context) => {
       // Rollback to previous state if mutation fails
       if (context?.previousNotifications) {
         queryClient.setQueryData(NOTIFICATIONS_QUERY_KEY, context.previousNotifications);
