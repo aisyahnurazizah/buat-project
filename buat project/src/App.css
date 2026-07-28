@@ -617,6 +617,19 @@ input:checked + .toggle-slider:before {
   100% { opacity: 0.4; }
 }
 
+.loading-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0 1rem 0;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.loading-indicator .spin {
+  animation: spin 1s linear infinite;
+}
+
 .spin {
   animation: spin 1s linear infinite;
 }

@@ -13,6 +13,7 @@ import {
   Inbox,
   MailCheck,
   CheckCircle,
+  Loader2,
 } from 'lucide-react';
 
 /**
@@ -126,7 +127,11 @@ export const NotificationCenterPage: React.FC = () => {
         {/* Loading State */}
         {isLoading && (
           <div className="notification-skeleton-list">
-            {[1, 2, 3, 4].map((key) => (
+            <div className="loading-indicator">
+              <Loader2 size={18} className="spin" />
+              <span>Loading notifications...</span>
+            </div>
+            {[1, 2, 3].map((key) => (
               <div key={key} className="notification-skeleton-card">
                 <div className="skeleton-avatar pulse" />
                 <div className="skeleton-body">
@@ -144,8 +149,15 @@ export const NotificationCenterPage: React.FC = () => {
           <div className="state-card error-card">
             <AlertTriangle size={36} className="error-icon" />
             <h3>Failed to Load Notifications</h3>
-            <p>{error?.message || 'An error occurred while communicating with the server.'}</p>
-            <button type="button" className="btn-primary" onClick={() => refetch()}>
+            <p>
+              {error?.message ||
+                'An error occurred while communicating with the server.'}
+            </p>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => refetch()}
+            >
               <RefreshCw size={16} />
               <span>Try Again</span>
             </button>
@@ -158,8 +170,10 @@ export const NotificationCenterPage: React.FC = () => {
             <div className="empty-icon-wrapper">
               <Inbox size={40} />
             </div>
-            <h3>No Notifications Found</h3>
-            <p>You are all caught up! New notifications will appear here when they arrive.</p>
+            <h3>No notifications yet</h3>
+            <p>
+              When you receive notifications, they&apos;ll appear here.
+            </p>
           </div>
         )}
 
