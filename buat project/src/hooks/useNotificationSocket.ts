@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { connectSocket, isSocketConnected } from '../services/socket';
+import { connectSocket } from '../services/socket';
 import { NOTIFICATIONS_QUERY_KEY } from './useNotifications';
 import { Notification } from '../types/notification';
 import {
@@ -72,7 +72,6 @@ const shouldShowBrowserNotification = (notification: Notification): boolean => {
  */
 const useNotificationSocket = (): void => {
   const queryClient = useQueryClient();
-  const connectedRef = useRef(isSocketConnected());
 
   /**
    * Keep a stable reference to the handler function.
@@ -166,19 +165,16 @@ const useNotificationSocket = (): void => {
     // Register listener
     socket.on('notification:new', handler);
 
-    // Listen for socket connection state changes and notify the app via DOM events
+     // Listen for socket connection state changes and notify the app via DOM events
     const handleDisconnect = () => {
-      connectedRef.current = false;
       window.dispatchEvent(new CustomEvent('socket:disconnect'));
     };
 
     const handleReconnect = () => {
-      connectedRef.current = true;
       window.dispatchEvent(new CustomEvent('socket:reconnect'));
     };
 
     const handleConnectError = () => {
-      connectedRef.current = false;
       window.dispatchEvent(new CustomEvent('socket:disconnect'));
     };
 

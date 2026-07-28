@@ -6,7 +6,7 @@ import {
   DEFAULT_NOTIFICATION_PREFERENCES,
   STORAGE_KEY_PREFERENCES,
 } from '../services/notificationPreferences';
-import { NotificationPreferences } from '../types/notification';
+import type { NotificationPreferences } from '../types/notification';
 
 beforeEach(() => {
   localStorage.clear();
