@@ -6,6 +6,7 @@ import { Notification } from '../types/notification';
 import {
   getNotificationPermission,
   showLocalNotification,
+  playNotificationSound,
 } from '../services/notification';
 import { getNotificationPreferences } from '../services/notificationPreferences';
 
@@ -133,6 +134,12 @@ const useNotificationSocket = (): void => {
           },
         });
       }
+
+      // ── Step 3: Notification Sound ──────────────────────────────────────────
+      // Play sound if the user has sound preference enabled.
+      // playNotificationSound() handles autoplay restrictions internally
+      // by catching play() rejections silently.
+      playNotificationSound();
     };
 
     handlerRef.current = handler;

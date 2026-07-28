@@ -4,6 +4,8 @@
  * displaying local notifications, and user notification preferences.
  */
 
+import { getNotificationPreferences } from './notificationPreferences';
+
 export * from '../types/notification';
 export * from './notificationPreferences';
 export * from './notificationApi';
@@ -232,5 +234,28 @@ export const showLocalNotification = async (
   } catch (error) {
     console.error('Failed to show standard notification:', error);
     return false;
+  }
+};
+
+/**
+ * Plays the notification sound if sound preference is enabled.
+ * Handles browser autoplay restrictions gracefully by catching
+ * play() rejections silently.
+ */
+export const playNotificationSound = (): void => {
+  const preferences = getNotificationPreferences();
+  if (!preferences.sound) {
+    return;
+  }
+
+  try {
+    const audio = new Audio('/notification-sound.wav');
+    audio.play().catch(() => {
+      // Autoplay policy prevented playback — expected when no user
+      // gesture has occurred yet. Subsequent notifications after
+      // user interaction will succeed automatically.
+    });
+  } catch (error) {
+    console.warn('Failed to play notification sound:', error);
   }
 };
