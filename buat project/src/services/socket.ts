@@ -33,24 +33,21 @@ export const getSocket = (): Socket => {
       transports: ['websocket', 'polling'], // Prefer WS, fall back to long-polling
     });
 
-    // Built-in lifecycle logging (only in development)
-    if (import.meta.env.DEV) {
-      socket.on('connect', () =>
-        console.log('[Socket] Connected — id:', socket?.id)
-      );
-      socket.on('disconnect', (reason) =>
-        console.log('[Socket] Disconnected — reason:', reason)
-      );
-      socket.on('connect_error', (err) =>
-        console.warn('[Socket] Connection error:', err.message)
-      );
-      socket.on('reconnect_attempt', (n) =>
-        console.log(`[Socket] Reconnect attempt #${n}`)
-      );
-      socket.on('reconnect_failed', () =>
-        console.error('[Socket] Reconnection failed after maximum attempts')
-      );
-    }
+    socket.on('connect', () =>
+      console.log('[Socket] Connected — id:', socket?.id)
+    );
+    socket.on('disconnect', (reason) =>
+      console.log('[Socket] Disconnected — reason:', reason)
+    );
+    socket.on('connect_error', (err) =>
+      console.warn('[Socket] Connection error:', err.message)
+    );
+    socket.on('reconnect_attempt', (n) =>
+      console.log(`[Socket] Reconnect attempt #${n}`)
+    );
+    socket.on('reconnect_failed', () =>
+      console.error('[Socket] Reconnection failed after maximum attempts')
+    );
   }
 
   return socket;

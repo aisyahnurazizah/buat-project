@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications, useMarkAsRead, useMarkAllAsRead } from '../hooks/useNotifications';
 import { Notification, NotificationType } from '../types/notification';
@@ -14,6 +14,8 @@ import {
   MailCheck,
   CheckCircle,
   Loader2,
+  WifiOff,
+  X,
 } from 'lucide-react';
 
 /**
@@ -64,23 +66,76 @@ export const NotificationCenterPage: React.FC = () => {
   const { notifications, isLoading, isError, error, isEmpty, refetch } = useNotifications();
   const markAsReadMutation = useMarkAsRead();
   const markAllAsReadMutation = useMarkAllAsRead();
+  const [toast, setToast] = useState<{ message: string; type: 'error' | 'warning' } | null>(null);
 
+  // ── Socket connection status ──────────────────────────────────────────────
+  const [socketConnected, setSocketConnected] = useState(true);
+
+  useEffect(() => {
+    const onDisconnect = () => setSocketConnected(false);
+    const onReconnect = () => setSocketConnected(true);
+    window.addEventListener('socket:disconnect', onDisconnect);
+    window.addEventListener('socket:reconnect', onReconnect);
+    return () => {
+      window.removeEventListener('socket:disconnect', onDisconnect);
+      window.removeEventListener('socket:reconnect', onReconnect);
+    };
+  }, []);
+
+  // ── Toast auto-dismiss ────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), 5000);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
+  // ── User-friendly error message ───────────────────────────────────────────
+  const getErrorMessage = (err: unknown): string => {
+    if (err instanceof Error) {
+      if (err.message === 'Network Error') {
+        return 'Network error — please check your connection and try again.';
+      }
+      if (err.message.includes('401') || err.message.includes('403')) {
+        return 'You are not authorized to perform this action.';
+      }
+      if (err.message.includes('404')) {
+        return 'The requested resource was not found.';
+      }
+      if (err.message.includes('500') || err.message.includes('502') || err.message.includes('503')) {
+        return 'Server error — please try again later.';
+      }
+      return err.message;
+    }
+    return 'An unexpected error occurred.';
+  };
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
   const hasUnread = notifications.some((n) => !n.isRead);
 
   const handleMarkAllAsRead = () => {
     if (hasUnread) {
-      markAllAsReadMutation.mutate();
+      markAllAsReadMutation.mutate(undefined, {
+        onError: (err) => {
+          setToast({ message: getErrorMessage(err), type: 'error' });
+        },
+      });
     }
   };
 
   const handleItemClick = (item: Notification) => {
     if (!item.isRead) {
-      markAsReadMutation.mutate(item.id);
+      markAsReadMutation.mutate(item.id, {
+        onError: (err) => {
+          setToast({ message: getErrorMessage(err), type: 'error' });
+        },
+      });
     }
     if (item.targetUrl) {
       navigate(item.targetUrl);
     }
   };
+
+  const dismissToast = () => setToast(null);
 
   return (
     <div className="notification-center-container">
@@ -124,6 +179,24 @@ export const NotificationCenterPage: React.FC = () => {
       </div>
 
       <div className="notification-center-content">
+        {/* Socket Connection Status */}
+        {!socketConnected && (
+          <div className="connection-status-bar">
+            <WifiOff size={14} />
+            <span>Connection lost — updates will resume when reconnected</span>
+          </div>
+        )}
+
+        {/* Toast Notification */}
+        {toast && (
+          <div className={`toast toast-${toast.type}`}>
+            <span>{toast.message}</span>
+            <button type="button" className="toast-dismiss" onClick={dismissToast}>
+              <X size={14} />
+            </button>
+          </div>
+        )}
+
         {/* Loading State */}
         {isLoading && (
           <div className="notification-skeleton-list">
@@ -149,15 +222,8 @@ export const NotificationCenterPage: React.FC = () => {
           <div className="state-card error-card">
             <AlertTriangle size={36} className="error-icon" />
             <h3>Failed to Load Notifications</h3>
-            <p>
-              {error?.message ||
-                'An error occurred while communicating with the server.'}
-            </p>
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={() => refetch()}
-            >
+            <p>{error ? getErrorMessage(error) : 'An error occurred while communicating with the server.'}</p>
+            <button type="button" className="btn-primary" onClick={() => refetch()}>
               <RefreshCw size={16} />
               <span>Try Again</span>
             </button>

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { connectSocket } from '../services/socket';
+import { connectSocket, isSocketConnected } from '../services/socket';
 import { NOTIFICATIONS_QUERY_KEY } from './useNotifications';
 import { Notification } from '../types/notification';
 import {
@@ -72,6 +72,7 @@ const shouldShowBrowserNotification = (notification: Notification): boolean => {
  */
 const useNotificationSocket = (): void => {
   const queryClient = useQueryClient();
+  const connectedRef = useRef(isSocketConnected());
 
   /**
    * Keep a stable reference to the handler function.
@@ -84,30 +85,35 @@ const useNotificationSocket = (): void => {
     const socket = connectSocket();
 
     const handler = async (notification: Notification) => {
-      // ── Validation ──────────────────────────────────────────────────────────
+      // ── Validation ──────────────────────────────────────────────────
       if (!notification || !notification.id) {
         console.warn('[Socket] Received malformed notification:new payload', notification);
         return;
       }
 
-      // ── Step 1: Update React Query cache ────────────────────────────────────
+      // ── Step 1: Update React Query cache ────────────────────────────
       let isDuplicate = false;
 
-      queryClient.setQueryData<Notification[]>(
-        NOTIFICATIONS_QUERY_KEY,
-        (prev) => {
-          const current = prev ?? [];
+      try {
+        queryClient.setQueryData<Notification[]>(
+          NOTIFICATIONS_QUERY_KEY,
+          (prev) => {
+            const current = prev ?? [];
 
-          // Guard against duplicates — a reconnect might re-deliver the same event
-          if (current.some((item) => item.id === notification.id)) {
-            isDuplicate = true;
-            return current;
+            // Guard against duplicates — a reconnect might re-deliver the same event
+            if (current.some((item) => item.id === notification.id)) {
+              isDuplicate = true;
+              return current;
+            }
+
+            // Prepend: newest notification appears first
+            return [{ ...notification, isRead: false }, ...current];
           }
-
-          // Prepend: newest notification appears first
-          return [{ ...notification, isRead: false }, ...current];
-        }
-      );
+        );
+      } catch (error) {
+        console.error('[Socket] Failed to update notification cache:', error);
+        return;
+      }
 
       // Don't show a browser notification for an event we've already processed
       if (isDuplicate) {
@@ -124,23 +130,35 @@ const useNotificationSocket = (): void => {
       // ── Step 2: Browser Notification ────────────────────────────────────────
       // Check permission and user preferences before showing
       if (shouldShowBrowserNotification(notification)) {
-        await showLocalNotification(notification.title, {
-          body: notification.message,
-          icon: '/favicon.svg',
-          badge: '/favicon.svg',
-          tag: `notification-${notification.id}`, // Prevents OS from stacking duplicates
-        data: {
-          url: notification.targetUrl ?? '/notifications',
-          notificationId: notification.id,
-        },
-        });
+        try {
+          const shown = await showLocalNotification(notification.title, {
+            body: notification.message,
+            icon: '/favicon.svg',
+            badge: '/favicon.svg',
+            tag: `notification-${notification.id}`,
+            data: {
+              url: notification.targetUrl ?? '/notifications',
+              notificationId: notification.id,
+            },
+          });
+
+          if (!shown && import.meta.env.DEV) {
+            console.warn('[Socket] Browser notification failed to show —', notification.id);
+          }
+        } catch (error) {
+          console.error('[Socket] Unexpected error showing browser notification:', error);
+        }
       }
 
       // ── Step 3: Notification Sound ──────────────────────────────────────────
       // Play sound if the user has sound preference enabled.
       // playNotificationSound() handles autoplay restrictions internally
       // by catching play() rejections silently.
-      playNotificationSound();
+      try {
+        playNotificationSound();
+      } catch (error) {
+        console.warn('[Socket] Failed to play notification sound:', error);
+      }
     };
 
     handlerRef.current = handler;
@@ -148,9 +166,32 @@ const useNotificationSocket = (): void => {
     // Register listener
     socket.on('notification:new', handler);
 
+    // Listen for socket connection state changes and notify the app via DOM events
+    const handleDisconnect = () => {
+      connectedRef.current = false;
+      window.dispatchEvent(new CustomEvent('socket:disconnect'));
+    };
+
+    const handleReconnect = () => {
+      connectedRef.current = true;
+      window.dispatchEvent(new CustomEvent('socket:reconnect'));
+    };
+
+    const handleConnectError = () => {
+      connectedRef.current = false;
+      window.dispatchEvent(new CustomEvent('socket:disconnect'));
+    };
+
+    socket.on('disconnect', handleDisconnect);
+    socket.on('reconnect', handleReconnect);
+    socket.on('connect_error', handleConnectError);
+
     return () => {
       // Remove exactly the handler we registered — no other listeners are touched
       socket.off('notification:new', handlerRef.current);
+      socket.off('disconnect', handleDisconnect);
+      socket.off('reconnect', handleReconnect);
+      socket.off('connect_error', handleConnectError);
     };
   }, [queryClient]); // queryClient is stable (never changes), so this runs once
 };
