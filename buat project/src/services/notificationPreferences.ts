@@ -1,4 +1,4 @@
-import { NotificationPreferences } from '../types/notification';
+import type { NotificationPreferences } from '../types/notification';
 
 export const STORAGE_KEY_PREFERENCES = 'notification_preferences';
 

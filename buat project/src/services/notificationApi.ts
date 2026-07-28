@@ -1,5 +1,5 @@
 import apiClient from './apiClient';
-import { Notification } from '../types/notification';
+import type { Notification } from '../types/notification';
 
 /**
  * Interface representing a wrapped API response for notifications.

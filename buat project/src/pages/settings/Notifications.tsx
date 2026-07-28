@@ -5,8 +5,8 @@ import {
   getNotificationPermissionState,
   handlePermissionRequest,
   subscribePermissionChange,
-  NotificationPermissionState,
-  NotificationPreferences,
+  type NotificationPermissionState,
+  type NotificationPreferences,
 } from '../../services/notification';
 import {
   Bell,

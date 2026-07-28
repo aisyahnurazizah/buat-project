@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications, useMarkAsRead, useMarkAllAsRead } from '../hooks/useNotifications';
-import { Notification, NotificationType } from '../types/notification';
+import type { Notification, NotificationType } from '../types/notification';
 import {
   Bell,
   MessageSquare,

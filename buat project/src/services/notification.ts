@@ -214,8 +214,8 @@ export const showLocalNotification = async (
     try {
       await registration.showNotification(title, options);
       return true;
-    } catch (error) {
-      console.warn('Failed to show notification via Service Worker, falling back to window Notification:', error);
+  } catch (_error) {
+       console.warn('Failed to show notification via Service Worker, falling back to window Notification:', _error);
     }
   }
 

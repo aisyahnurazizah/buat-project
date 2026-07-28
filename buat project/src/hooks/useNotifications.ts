@@ -1,6 +1,7 @@
-import { useQuery, useMutation, useQueryClient, UseQueryResult, UseMutationResult } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { UseQueryResult, UseMutationResult } from '@tanstack/react-query';
 import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead } from '../services/notificationApi';
-import { Notification } from '../types/notification';
+import type { Notification } from '../types/notification';
 
 /**
  * Query key for notification list caching and invalidation.

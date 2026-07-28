@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { connectSocket } from '../services/socket';
 import { NOTIFICATIONS_QUERY_KEY } from './useNotifications';
-import { Notification } from '../types/notification';
+import type { Notification } from '../types/notification';
 import {
   getNotificationPermission,
   showLocalNotification,

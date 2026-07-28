@@ -27,6 +27,7 @@ const useSocket = (): Socket => {
     };
   }, []); // Empty deps — run exactly once per mount/unmount cycle
 
+  // eslint-disable-next-line react-hooks/refs
   return socketRef.current;
 };
 
