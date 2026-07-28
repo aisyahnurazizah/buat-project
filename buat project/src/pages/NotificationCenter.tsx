@@ -1,6 +1,7 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useNotifications, useMarkAsRead, useMarkAllAsRead } from '../hooks/useNotifications';
-import { NotificationType } from '../types/notification';
+import { Notification, NotificationType } from '../types/notification';
 import {
   Bell,
   MessageSquare,
@@ -58,6 +59,7 @@ const NotificationTypeIcon: React.FC<{ type: NotificationType }> = ({ type }) =>
 };
 
 export const NotificationCenterPage: React.FC = () => {
+  const navigate = useNavigate();
   const { notifications, isLoading, isError, error, isEmpty, refetch } = useNotifications();
   const markAsReadMutation = useMarkAsRead();
   const markAllAsReadMutation = useMarkAllAsRead();
@@ -70,9 +72,12 @@ export const NotificationCenterPage: React.FC = () => {
     }
   };
 
-  const handleItemClick = (id: string, isRead: boolean) => {
-    if (!isRead) {
-      markAsReadMutation.mutate(id);
+  const handleItemClick = (item: Notification) => {
+    if (!item.isRead) {
+      markAsReadMutation.mutate(item.id);
+    }
+    if (item.targetUrl) {
+      navigate(item.targetUrl);
     }
   };
 
@@ -165,12 +170,12 @@ export const NotificationCenterPage: React.FC = () => {
               <div
                 key={item.id}
                 className={`notification-item-card ${item.isRead ? 'read' : 'unread'}`}
-                onClick={() => handleItemClick(item.id, item.isRead)}
+                onClick={() => handleItemClick(item)}
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
-                    handleItemClick(item.id, item.isRead);
+                    handleItemClick(item);
                   }
                 }}
               >

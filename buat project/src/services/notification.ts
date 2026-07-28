@@ -226,7 +226,14 @@ export const showLocalNotification = async (
       notification.onclick = (event) => {
         event.preventDefault();
         window.focus();
-        window.location.href = options.data.url;
+        window.dispatchEvent(
+          new CustomEvent('notification:click', {
+            detail: {
+              url: options.data.url,
+              notificationId: options.data.notificationId,
+            },
+          })
+        );
         notification.close();
       };
     }

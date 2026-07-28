@@ -129,9 +129,10 @@ const useNotificationSocket = (): void => {
           icon: '/favicon.svg',
           badge: '/favicon.svg',
           tag: `notification-${notification.id}`, // Prevents OS from stacking duplicates
-          data: {
-            url: notification.targetUrl ?? '/notifications',
-          },
+        data: {
+          url: notification.targetUrl ?? '/notifications',
+          notificationId: notification.id,
+        },
         });
       }
 
